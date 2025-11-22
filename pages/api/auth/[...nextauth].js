@@ -44,31 +44,31 @@ export const authOptions = {
       }
       return true;
     },
-        async session({ session, token, user }) {
-          console.log('Session callback - User email:', session?.user?.email);
-          
-          try {
-            await mongooseConnect();
-            
-            // Проверяваме дали user-ът е в admins колекцията
-            const adminEmails = await Admin.find().select('email');
-            const adminEmailList = adminEmails.map(admin => admin.email);
-            
-            console.log('Admin emails from DB:', adminEmailList);
-            console.log('Is admin:', adminEmailList.includes(session?.user?.email));
-            
-            if (adminEmailList.includes(session?.user?.email)) {
-              console.log('User is admin, allowing access');
-              return session;
-            } else {
-              console.log('User is not admin, denying access');
-              return false;
-            }
-          } catch (error) {
-            console.error('Error checking admin status:', error);
-            return false;
-          }
-        },
+    async session({ session, token, user }) {
+      console.log('Session callback - User email:', session?.user?.email);
+      
+      try {
+        await mongooseConnect();
+        
+        // Проверяваме дали user-ът е в admins колекцията
+        const adminEmails = await Admin.find().select('email');
+        const adminEmailList = adminEmails.map(admin => admin.email);
+        
+        console.log('Admin emails from DB:', adminEmailList);
+        console.log('Is admin:', adminEmailList.includes(session?.user?.email));
+        
+        if (adminEmailList.includes(session?.user?.email)) {
+          console.log('User is admin, allowing access');
+          return session;
+        } else {
+          console.log('User is not admin, denying access');
+          return false;
+        }
+      } catch (error) {
+        console.error('Error checking admin status:', error);
+        return false;
+      }
+    },
   },
   pages: {
     signIn: '/api/auth/signin',
