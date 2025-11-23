@@ -1,4 +1,7 @@
-import {S3Client, PutObjectCommand} from '@aws-sdk/client-s3';
+import multiparty from 'multiparty';
+import {PutObjectCommand, S3Client} from '@aws-sdk/client-s3';
+import fs from 'fs';
+import mime from 'mime-types';
 import {mongooseConnect} from "@/lib/mongoose";
 import {isAdminRequest} from "@/pages/api/auth/[...nextauth]";
 
@@ -13,6 +16,24 @@ export default async function handle(req, res) {
   }
 
   try {
+    // Използваме multiparty за обработка на големи файлове (като в стария проект)
+    const form = new multiparty.Form();
+    
+    const {fields, files} = await new Promise((resolve, reject) => {
+      form.parse(req, (err, fields, files) => {
+        if (err) {
+          console.error('Multiparty parse error:', err);
+          reject(err);
+          return;
+        }
+        resolve({fields, files});
+      });
+    });
+
+    if (!files.file || files.file.length === 0) {
+      return res.status(400).json({message: 'Няма файл за качване'});
+    }
+
     const client = new S3Client({
       region: process.env.S3_REGION || 'us-east-1',
       credentials: {
@@ -21,34 +42,27 @@ export default async function handle(req, res) {
       },
     });
 
-    // Четем файла като stream от request body
-    const chunks = [];
-    for await (const chunk of req) {
-      chunks.push(chunk);
-    }
-    const fileBuffer = Buffer.concat(chunks);
-
-    // Взимаме metadata от headers
-    const fileName = req.headers['x-file-name'] || 'video.mp4';
-    const fileType = req.headers['content-type'] || 'video/mp4';
+    const links = [];
     
-    // Генерираме уникално име
-    const ext = fileName.split('.').pop();
-    const newFilename = `videos/${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`;
-
-    // Качваме в S3
-    await client.send(new PutObjectCommand({
-      Bucket: bucketName,
-      Key: newFilename,
-      Body: fileBuffer,
-      ContentType: fileType,
-    }));
-
-    const fileUrl = `https://${bucketName}.s3.amazonaws.com/${newFilename}`;
+    for (const file of files.file) {
+      const ext = file.originalFilename.split('.').pop();
+      // За видео файлове ги слагаме в videos/ папка
+      const newFilename = `videos/${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`;
+      
+      await client.send(new PutObjectCommand({
+        Bucket: bucketName,
+        Key: newFilename,
+        Body: fs.readFileSync(file.path),
+        ContentType: mime.lookup(file.path) || 'video/mp4',
+      }));
+      
+      const link = `https://${bucketName}.s3.amazonaws.com/${newFilename}`;
+      links.push(link);
+    }
 
     res.json({
-      link: fileUrl,
-      key: newFilename,
+      links: links,
+      link: links[0], // За обратна съвместимост
     });
   } catch (error) {
     console.error('Error in stream upload:', error);
@@ -61,7 +75,7 @@ export default async function handle(req, res) {
 
 export const config = {
   api: {
-    bodyParser: false, // Изключваме bodyParser за streaming
+    bodyParser: false, // Изключваме bodyParser за multiparty
   },
 };
 

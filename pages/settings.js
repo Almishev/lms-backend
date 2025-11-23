@@ -201,11 +201,13 @@ function SettingsPage({swal}) {
                           fileType: fileType,
                         });
                         
-                        // Качваме през backend с streaming (избягваме Vercel 4.5MB лимита)
-                        const res = await axios.post('/api/upload-stream', file, {
+                        // Качваме през backend с multiparty (избягваме Vercel 4.5MB лимита)
+                        const data = new FormData();
+                        data.append('file', file);
+                        
+                        const res = await axios.post('/api/upload-stream', data, {
                           headers: {
-                            'Content-Type': fileType,
-                            'X-File-Name': file.name,
+                            'Content-Type': 'multipart/form-data',
                           },
                           maxContentLength: Infinity,
                           maxBodyLength: Infinity,
@@ -215,7 +217,7 @@ function SettingsPage({swal}) {
                           },
                         });
                         
-                        fileUrl = res.data.link || '';
+                        fileUrl = res.data.link || res.data.links?.[0] || '';
                       } else {
                         // За малки файлове използваме стандартния метод
                         const data = new FormData();
@@ -339,11 +341,13 @@ function SettingsPage({swal}) {
                           fileType: fileType,
                         });
                         
-                        // Качваме през backend с streaming (избягваме Vercel 4.5MB лимита)
-                        const res = await axios.post('/api/upload-stream', file, {
+                        // Качваме през backend с multiparty (избягваме Vercel 4.5MB лимита)
+                        const data = new FormData();
+                        data.append('file', file);
+                        
+                        const res = await axios.post('/api/upload-stream', data, {
                           headers: {
-                            'Content-Type': fileType,
-                            'X-File-Name': file.name,
+                            'Content-Type': 'multipart/form-data',
                           },
                           maxContentLength: Infinity,
                           maxBodyLength: Infinity,
@@ -353,7 +357,7 @@ function SettingsPage({swal}) {
                           },
                         });
                         
-                        fileUrl = res.data.link || '';
+                        fileUrl = res.data.link || res.data.links?.[0] || '';
                       } else {
                         // За малки файлове използваме стандартния метод
                         const data = new FormData();
