@@ -192,32 +192,51 @@ function SettingsPage({swal}) {
                       let fileUrl;
                       
                       if (file.size > maxSizeForDirectUpload) {
-                        // За големи файлове използваме streaming upload през backend
+                        // За големи файлове (>4MB) Vercel блокира заявката преди да достигне до нашия код
+                        // Единственият начин е presigned URL с правилна CORS конфигурация
                         const fileType = file.type || 'video/mp4';
                         
-                        console.log('Започвам streaming upload за голям файл...', {
+                        console.log('Файлът е над 4MB, използвам presigned URL...', {
                           fileName: file.name,
                           fileSize: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
                           fileType: fileType,
                         });
                         
-                        // Качваме през backend с multiparty (избягваме Vercel 4.5MB лимита)
-                        const data = new FormData();
-                        data.append('file', file);
-                        
-                        const res = await axios.post('/api/upload-stream', data, {
-                          headers: {
-                            'Content-Type': 'multipart/form-data',
-                          },
-                          maxContentLength: Infinity,
-                          maxBodyLength: Infinity,
-                          onUploadProgress: (progressEvent) => {
-                            const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-                            console.log(`Upload progress: ${percentCompleted}%`);
-                          },
+                        // Генерираме presigned URL
+                        const presignedRes = await axios.post('/api/upload-presigned', {
+                          fileName: file.name,
+                          fileType: fileType,
                         });
                         
-                        fileUrl = res.data.link || res.data.links?.[0] || '';
+                        if (!presignedRes.data?.presignedUrl) {
+                          throw new Error('Неуспешно генериране на presigned URL');
+                        }
+                        
+                        const {presignedUrl, fileUrl: uploadedUrl} = presignedRes.data;
+                        
+                        console.log('Presigned URL получен, качвам директно в S3...');
+                        
+                        // Качваме директно в S3 с fetch
+                        const uploadResponse = await fetch(presignedUrl, {
+                          method: 'PUT',
+                          headers: {
+                            'Content-Type': fileType,
+                          },
+                          body: file,
+                        });
+                        
+                        if (!uploadResponse.ok) {
+                          const errorText = await uploadResponse.text().catch(() => 'Unknown error');
+                          console.error('S3 upload failed:', {
+                            status: uploadResponse.status,
+                            statusText: uploadResponse.statusText,
+                            errorText,
+                          });
+                          throw new Error(`S3 upload failed: ${uploadResponse.status}. Провери CORS настройките на S3 bucket-а.`);
+                        }
+                        
+                        console.log('Файлът е качен успешно в S3');
+                        fileUrl = uploadedUrl;
                       } else {
                         // За малки файлове използваме стандартния метод
                         const data = new FormData();
@@ -332,32 +351,51 @@ function SettingsPage({swal}) {
                       let fileUrl;
                       
                       if (file.size > maxSizeForDirectUpload) {
-                        // За големи файлове използваме streaming upload през backend
+                        // За големи файлове (>4MB) Vercel блокира заявката преди да достигне до нашия код
+                        // Единственият начин е presigned URL с правилна CORS конфигурация
                         const fileType = file.type || 'video/mp4';
                         
-                        console.log('Започвам streaming upload за голям файл...', {
+                        console.log('Файлът е над 4MB, използвам presigned URL...', {
                           fileName: file.name,
                           fileSize: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
                           fileType: fileType,
                         });
                         
-                        // Качваме през backend с multiparty (избягваме Vercel 4.5MB лимита)
-                        const data = new FormData();
-                        data.append('file', file);
-                        
-                        const res = await axios.post('/api/upload-stream', data, {
-                          headers: {
-                            'Content-Type': 'multipart/form-data',
-                          },
-                          maxContentLength: Infinity,
-                          maxBodyLength: Infinity,
-                          onUploadProgress: (progressEvent) => {
-                            const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-                            console.log(`Upload progress: ${percentCompleted}%`);
-                          },
+                        // Генерираме presigned URL
+                        const presignedRes = await axios.post('/api/upload-presigned', {
+                          fileName: file.name,
+                          fileType: fileType,
                         });
                         
-                        fileUrl = res.data.link || res.data.links?.[0] || '';
+                        if (!presignedRes.data?.presignedUrl) {
+                          throw new Error('Неуспешно генериране на presigned URL');
+                        }
+                        
+                        const {presignedUrl, fileUrl: uploadedUrl} = presignedRes.data;
+                        
+                        console.log('Presigned URL получен, качвам директно в S3...');
+                        
+                        // Качваме директно в S3 с fetch
+                        const uploadResponse = await fetch(presignedUrl, {
+                          method: 'PUT',
+                          headers: {
+                            'Content-Type': fileType,
+                          },
+                          body: file,
+                        });
+                        
+                        if (!uploadResponse.ok) {
+                          const errorText = await uploadResponse.text().catch(() => 'Unknown error');
+                          console.error('S3 upload failed:', {
+                            status: uploadResponse.status,
+                            statusText: uploadResponse.statusText,
+                            errorText,
+                          });
+                          throw new Error(`S3 upload failed: ${uploadResponse.status}. Провери CORS настройките на S3 bucket-а.`);
+                        }
+                        
+                        console.log('Файлът е качен успешно в S3');
+                        fileUrl = uploadedUrl;
                       } else {
                         // За малки файлове използваме стандартния метод
                         const data = new FormData();
