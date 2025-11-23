@@ -206,20 +206,38 @@ function SettingsPage({swal}) {
                         
                         const {presignedUrl, fileUrl: uploadedUrl} = presignedRes.data;
                         
-                        // Качваме директно в S3 с fetch (по-добра CORS поддръжка)
-                        const uploadResponse = await fetch(presignedUrl, {
-                          method: 'PUT',
-                          headers: {
-                            'Content-Type': fileType,
-                          },
-                          body: file,
+                        console.log('Presigned URL получен, започвам качване...', {
+                          fileName: file.name,
+                          fileSize: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
+                          fileType: fileType,
                         });
+                        
+                        // Качваме директно в S3 с fetch (по-добра CORS поддръжка)
+                        let uploadResponse;
+                        try {
+                          uploadResponse = await fetch(presignedUrl, {
+                            method: 'PUT',
+                            headers: {
+                              'Content-Type': fileType,
+                            },
+                            body: file,
+                          });
+                        } catch (fetchError) {
+                          console.error('Fetch error details:', fetchError);
+                          throw new Error(`Грешка при свързване със S3: ${fetchError.message}. Провери CORS настройките на S3 bucket-а и дали presigned URL-ът е валиден.`);
+                        }
                         
                         if (!uploadResponse.ok) {
                           const errorText = await uploadResponse.text().catch(() => 'Unknown error');
+                          console.error('S3 upload failed:', {
+                            status: uploadResponse.status,
+                            statusText: uploadResponse.statusText,
+                            errorText,
+                          });
                           throw new Error(`S3 upload failed: ${uploadResponse.status} ${uploadResponse.statusText}. ${errorText}`);
                         }
                         
+                        console.log('Файлът е качен успешно в S3');
                         fileUrl = uploadedUrl;
                       } else {
                         // За малки файлове използваме стандартния метод
@@ -349,20 +367,38 @@ function SettingsPage({swal}) {
                         
                         const {presignedUrl, fileUrl: uploadedUrl} = presignedRes.data;
                         
-                        // Качваме директно в S3 с fetch (по-добра CORS поддръжка)
-                        const uploadResponse = await fetch(presignedUrl, {
-                          method: 'PUT',
-                          headers: {
-                            'Content-Type': fileType,
-                          },
-                          body: file,
+                        console.log('Presigned URL получен, започвам качване...', {
+                          fileName: file.name,
+                          fileSize: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
+                          fileType: fileType,
                         });
+                        
+                        // Качваме директно в S3 с fetch (по-добра CORS поддръжка)
+                        let uploadResponse;
+                        try {
+                          uploadResponse = await fetch(presignedUrl, {
+                            method: 'PUT',
+                            headers: {
+                              'Content-Type': fileType,
+                            },
+                            body: file,
+                          });
+                        } catch (fetchError) {
+                          console.error('Fetch error details:', fetchError);
+                          throw new Error(`Грешка при свързване със S3: ${fetchError.message}. Провери CORS настройките на S3 bucket-а и дали presigned URL-ът е валиден.`);
+                        }
                         
                         if (!uploadResponse.ok) {
                           const errorText = await uploadResponse.text().catch(() => 'Unknown error');
+                          console.error('S3 upload failed:', {
+                            status: uploadResponse.status,
+                            statusText: uploadResponse.statusText,
+                            errorText,
+                          });
                           throw new Error(`S3 upload failed: ${uploadResponse.status} ${uploadResponse.statusText}. ${errorText}`);
                         }
                         
+                        console.log('Файлът е качен успешно в S3');
                         fileUrl = uploadedUrl;
                       } else {
                         // За малки файлове използваме стандартния метод
