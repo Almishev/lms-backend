@@ -185,48 +185,62 @@ function SettingsPage({swal}) {
                   const files = ev.target?.files;
                   if (files?.length > 0) {
                     const file = files[0];
-                    // Vercel ограничава до 4.5MB
-                    const maxSize = 4 * 1024 * 1024; // 4MB
-                    if (file.size > maxSize) {
-                      swal.fire({
-                        title: 'Файлът е твърде голям',
-                        text: `Максималният размер е 4MB. Вашият файл е ${(file.size / 1024 / 1024).toFixed(2)}MB. Моля, компресирайте видеото или използвайте по-малък файл.`,
-                        icon: 'error',
-                      });
-                      ev.target.value = ''; // Reset input
-                      return;
-                    }
+                    const maxSizeForDirectUpload = 4 * 1024 * 1024; // 4MB
+                    
                     setIsUploadingDesktop(true);
                     try {
-                      const data = new FormData();
-                      for (const file of files) {
+                      let fileUrl;
+                      
+                      if (file.size > maxSizeForDirectUpload) {
+                        // За големи файлове използваме presigned URL (директно качване в S3)
+                        const presignedRes = await axios.post('/api/upload-presigned', {
+                          fileName: file.name,
+                          fileType: file.type,
+                        });
+                        
+                        const {presignedUrl, fileUrl: uploadedUrl} = presignedRes.data;
+                        
+                        // Качваме директно в S3
+                        await axios.put(presignedUrl, file, {
+                          headers: {
+                            'Content-Type': file.type,
+                          },
+                          onUploadProgress: (progressEvent) => {
+                            const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+                            console.log(`Upload progress: ${percentCompleted}%`);
+                          },
+                        });
+                        
+                        fileUrl = uploadedUrl;
+                      } else {
+                        // За малки файлове използваме стандартния метод
+                        const data = new FormData();
                         data.append('file', file);
+                        const res = await axios.post('/api/upload', data, {
+                          headers: {
+                            'Content-Type': 'multipart/form-data',
+                          },
+                        });
+                        fileUrl = res.data.links?.[0] || '';
                       }
-                      const res = await axios.post('/api/upload', data, {
-                        headers: {
-                          'Content-Type': 'multipart/form-data',
-                        },
-                        maxContentLength: Infinity,
-                        maxBodyLength: Infinity,
+                      
+                      setHeroVideoDesktop(fileUrl);
+                      swal.fire({
+                        title: 'Успех!',
+                        text: 'Видеото е качено успешно',
+                        icon: 'success',
+                        timer: 2000,
                       });
-                      setHeroVideoDesktop(res.data.links?.[0] || '');
                     } catch (error) {
                       console.error('Upload error:', error);
-                      if (error.response?.status === 413) {
-                        swal.fire({
-                          title: 'Файлът е твърде голям',
-                          text: 'Максималният размер е 4MB. Моля, компресирайте видеото.',
-                          icon: 'error',
-                        });
-                      } else {
-                        swal.fire({
-                          title: 'Грешка при качване',
-                          text: error.response?.data?.message || error.message || 'Нещо се обърка',
-                          icon: 'error',
-                        });
-                      }
+                      swal.fire({
+                        title: 'Грешка при качване',
+                        text: error.response?.data?.message || error.message || 'Нещо се обърка',
+                        icon: 'error',
+                      });
                     } finally {
                       setIsUploadingDesktop(false);
+                      ev.target.value = ''; // Reset input
                     }
                   }
                 }} 
@@ -291,48 +305,62 @@ function SettingsPage({swal}) {
                   const files = ev.target?.files;
                   if (files?.length > 0) {
                     const file = files[0];
-                    // Vercel ограничава до 4.5MB
-                    const maxSize = 4 * 1024 * 1024; // 4MB
-                    if (file.size > maxSize) {
-                      swal.fire({
-                        title: 'Файлът е твърде голям',
-                        text: `Максималният размер е 4MB. Вашият файл е ${(file.size / 1024 / 1024).toFixed(2)}MB. Моля, компресирайте видеото или използвайте по-малък файл.`,
-                        icon: 'error',
-                      });
-                      ev.target.value = ''; // Reset input
-                      return;
-                    }
+                    const maxSizeForDirectUpload = 4 * 1024 * 1024; // 4MB
+                    
                     setIsUploadingMobile(true);
                     try {
-                      const data = new FormData();
-                      for (const file of files) {
+                      let fileUrl;
+                      
+                      if (file.size > maxSizeForDirectUpload) {
+                        // За големи файлове използваме presigned URL (директно качване в S3)
+                        const presignedRes = await axios.post('/api/upload-presigned', {
+                          fileName: file.name,
+                          fileType: file.type,
+                        });
+                        
+                        const {presignedUrl, fileUrl: uploadedUrl} = presignedRes.data;
+                        
+                        // Качваме директно в S3
+                        await axios.put(presignedUrl, file, {
+                          headers: {
+                            'Content-Type': file.type,
+                          },
+                          onUploadProgress: (progressEvent) => {
+                            const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+                            console.log(`Upload progress: ${percentCompleted}%`);
+                          },
+                        });
+                        
+                        fileUrl = uploadedUrl;
+                      } else {
+                        // За малки файлове използваме стандартния метод
+                        const data = new FormData();
                         data.append('file', file);
+                        const res = await axios.post('/api/upload', data, {
+                          headers: {
+                            'Content-Type': 'multipart/form-data',
+                          },
+                        });
+                        fileUrl = res.data.links?.[0] || '';
                       }
-                      const res = await axios.post('/api/upload', data, {
-                        headers: {
-                          'Content-Type': 'multipart/form-data',
-                        },
-                        maxContentLength: Infinity,
-                        maxBodyLength: Infinity,
+                      
+                      setHeroVideoMobile(fileUrl);
+                      swal.fire({
+                        title: 'Успех!',
+                        text: 'Видеото е качено успешно',
+                        icon: 'success',
+                        timer: 2000,
                       });
-                      setHeroVideoMobile(res.data.links?.[0] || '');
                     } catch (error) {
                       console.error('Upload error:', error);
-                      if (error.response?.status === 413) {
-                        swal.fire({
-                          title: 'Файлът е твърде голям',
-                          text: 'Максималният размер е 4MB. Моля, компресирайте видеото.',
-                          icon: 'error',
-                        });
-                      } else {
-                        swal.fire({
-                          title: 'Грешка при качване',
-                          text: error.response?.data?.message || error.message || 'Нещо се обърка',
-                          icon: 'error',
-                        });
-                      }
+                      swal.fire({
+                        title: 'Грешка при качване',
+                        text: error.response?.data?.message || error.message || 'Нещо се обърка',
+                        icon: 'error',
+                      });
                     } finally {
                       setIsUploadingMobile(false);
+                      ev.target.value = ''; // Reset input
                     }
                   }
                 }} 
