@@ -8,10 +8,12 @@ import {Admin} from "@/models/Admin";
 
 export const authOptions = {
   secret: process.env.SECRET,
+  // Set the base URL for NextAuth
+  ...(process.env.NEXTAUTH_URL && { url: process.env.NEXTAUTH_URL }),
   providers: [
     GoogleProvider({
-      clientId: process.env.GOOGLE_ID,
-      clientSecret: process.env.GOOGLE_SECRET
+      clientId: process.env.GOOGLE_ID?.trim(),
+      clientSecret: process.env.GOOGLE_SECRET?.trim()
     }),
     FacebookProvider({
       clientId: process.env.FACEBOOK_ID,
