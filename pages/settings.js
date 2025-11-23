@@ -193,23 +193,32 @@ function SettingsPage({swal}) {
                       
                       if (file.size > maxSizeForDirectUpload) {
                         // За големи файлове използваме presigned URL (директно качване в S3)
+                        const fileType = file.type || 'video/mp4'; // Fallback ако file.type е празен
+                        
                         const presignedRes = await axios.post('/api/upload-presigned', {
                           fileName: file.name,
-                          fileType: file.type,
+                          fileType: fileType,
                         });
+                        
+                        if (!presignedRes.data?.presignedUrl) {
+                          throw new Error('Неуспешно генериране на presigned URL');
+                        }
                         
                         const {presignedUrl, fileUrl: uploadedUrl} = presignedRes.data;
                         
-                        // Качваме директно в S3
-                        await axios.put(presignedUrl, file, {
+                        // Качваме директно в S3 с fetch (по-добра CORS поддръжка)
+                        const uploadResponse = await fetch(presignedUrl, {
+                          method: 'PUT',
                           headers: {
-                            'Content-Type': file.type,
+                            'Content-Type': fileType,
                           },
-                          onUploadProgress: (progressEvent) => {
-                            const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-                            console.log(`Upload progress: ${percentCompleted}%`);
-                          },
+                          body: file,
                         });
+                        
+                        if (!uploadResponse.ok) {
+                          const errorText = await uploadResponse.text().catch(() => 'Unknown error');
+                          throw new Error(`S3 upload failed: ${uploadResponse.status} ${uploadResponse.statusText}. ${errorText}`);
+                        }
                         
                         fileUrl = uploadedUrl;
                       } else {
@@ -233,10 +242,24 @@ function SettingsPage({swal}) {
                       });
                     } catch (error) {
                       console.error('Upload error:', error);
+                      console.error('Error details:', {
+                        message: error.message,
+                        response: error.response?.data,
+                        status: error.response?.status,
+                      });
+                      
+                      let errorMessage = 'Нещо се обърка';
+                      if (error.response?.data?.message) {
+                        errorMessage = error.response.data.message;
+                      } else if (error.message) {
+                        errorMessage = error.message;
+                      }
+                      
                       swal.fire({
                         title: 'Грешка при качване',
-                        text: error.response?.data?.message || error.message || 'Нещо се обърка',
+                        text: errorMessage,
                         icon: 'error',
+                        html: `<p>${errorMessage}</p><p style="font-size: 12px; margin-top: 10px;">Провери конзолата за повече детайли.</p>`,
                       });
                     } finally {
                       setIsUploadingDesktop(false);
@@ -313,23 +336,32 @@ function SettingsPage({swal}) {
                       
                       if (file.size > maxSizeForDirectUpload) {
                         // За големи файлове използваме presigned URL (директно качване в S3)
+                        const fileType = file.type || 'video/mp4'; // Fallback ако file.type е празен
+                        
                         const presignedRes = await axios.post('/api/upload-presigned', {
                           fileName: file.name,
-                          fileType: file.type,
+                          fileType: fileType,
                         });
+                        
+                        if (!presignedRes.data?.presignedUrl) {
+                          throw new Error('Неуспешно генериране на presigned URL');
+                        }
                         
                         const {presignedUrl, fileUrl: uploadedUrl} = presignedRes.data;
                         
-                        // Качваме директно в S3
-                        await axios.put(presignedUrl, file, {
+                        // Качваме директно в S3 с fetch (по-добра CORS поддръжка)
+                        const uploadResponse = await fetch(presignedUrl, {
+                          method: 'PUT',
                           headers: {
-                            'Content-Type': file.type,
+                            'Content-Type': fileType,
                           },
-                          onUploadProgress: (progressEvent) => {
-                            const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-                            console.log(`Upload progress: ${percentCompleted}%`);
-                          },
+                          body: file,
                         });
+                        
+                        if (!uploadResponse.ok) {
+                          const errorText = await uploadResponse.text().catch(() => 'Unknown error');
+                          throw new Error(`S3 upload failed: ${uploadResponse.status} ${uploadResponse.statusText}. ${errorText}`);
+                        }
                         
                         fileUrl = uploadedUrl;
                       } else {
@@ -353,10 +385,24 @@ function SettingsPage({swal}) {
                       });
                     } catch (error) {
                       console.error('Upload error:', error);
+                      console.error('Error details:', {
+                        message: error.message,
+                        response: error.response?.data,
+                        status: error.response?.status,
+                      });
+                      
+                      let errorMessage = 'Нещо се обърка';
+                      if (error.response?.data?.message) {
+                        errorMessage = error.response.data.message;
+                      } else if (error.message) {
+                        errorMessage = error.message;
+                      }
+                      
                       swal.fire({
                         title: 'Грешка при качване',
-                        text: error.response?.data?.message || error.message || 'Нещо се обърка',
+                        text: errorMessage,
                         icon: 'error',
+                        html: `<p>${errorMessage}</p><p style="font-size: 12px; margin-top: 10px;">Провери конзолата за повече детайли.</p>`,
                       });
                     } finally {
                       setIsUploadingMobile(false);

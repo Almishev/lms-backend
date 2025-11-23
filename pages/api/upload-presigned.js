@@ -21,7 +21,7 @@ export default async function handle(req, res) {
 
   try {
     const client = new S3Client({
-      region: process.env.S3_REGION || 'eu-central-1',
+      region: process.env.S3_REGION || 'us-east-1', // Същият region като в upload.js
       credentials: {
         accessKeyId: process.env.S3_ACCESS_KEY,
         secretAccessKey: process.env.S3_SECRET_ACCESS_KEY,
@@ -32,11 +32,15 @@ export default async function handle(req, res) {
     const ext = fileName.split('.').pop();
     const newFilename = `videos/${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`;
 
-    // Създаваме команда за качване
+    // Създаваме команда за качване с CORS headers
     const command = new PutObjectCommand({
       Bucket: bucketName,
       Key: newFilename,
       ContentType: fileType,
+      // Добавяме CORS headers за по-добра съвместимост
+      Metadata: {
+        'original-filename': fileName,
+      },
     });
 
     // Генерираме presigned URL (валиден за 1 час)
