@@ -21,8 +21,25 @@ function SettingsPage({swal}) {
   }, []);
 
   function fetchProducts() {
-    axios.get('/api/products').then(result => {
-      setProducts(result.data);
+    // За settings страницата искаме всички книги, затова използваме голям limit
+    axios.get('/api/products?limit=1000').then(result => {
+      // API връща {products: [...], pagination: {...}}
+      if (result.data.products) {
+        setProducts(result.data.products);
+      } else if (Array.isArray(result.data)) {
+        // Fallback за стари версии на API
+        setProducts(result.data);
+      } else {
+        setProducts([]);
+      }
+    }).catch(error => {
+      console.error('Error fetching products:', error);
+      swal.fire({
+        title: 'Грешка!',
+        text: 'Неуспешно зареждане на книгите',
+        icon: 'error',
+      });
+      setProducts([]);
     });
   }
 
@@ -167,14 +184,50 @@ function SettingsPage({swal}) {
                 onChange={async ev => {
                   const files = ev.target?.files;
                   if (files?.length > 0) {
-                    setIsUploadingDesktop(true);
-                    const data = new FormData();
-                    for (const file of files) {
-                      data.append('file', file);
+                    const file = files[0];
+                    // Vercel ограничава до 4.5MB
+                    const maxSize = 4 * 1024 * 1024; // 4MB
+                    if (file.size > maxSize) {
+                      swal.fire({
+                        title: 'Файлът е твърде голям',
+                        text: `Максималният размер е 4MB. Вашият файл е ${(file.size / 1024 / 1024).toFixed(2)}MB. Моля, компресирайте видеото или използвайте по-малък файл.`,
+                        icon: 'error',
+                      });
+                      ev.target.value = ''; // Reset input
+                      return;
                     }
-                    const res = await axios.post('/api/upload', data);
-                    setHeroVideoDesktop(res.data.links?.[0] || '');
-                    setIsUploadingDesktop(false);
+                    setIsUploadingDesktop(true);
+                    try {
+                      const data = new FormData();
+                      for (const file of files) {
+                        data.append('file', file);
+                      }
+                      const res = await axios.post('/api/upload', data, {
+                        headers: {
+                          'Content-Type': 'multipart/form-data',
+                        },
+                        maxContentLength: Infinity,
+                        maxBodyLength: Infinity,
+                      });
+                      setHeroVideoDesktop(res.data.links?.[0] || '');
+                    } catch (error) {
+                      console.error('Upload error:', error);
+                      if (error.response?.status === 413) {
+                        swal.fire({
+                          title: 'Файлът е твърде голям',
+                          text: 'Максималният размер е 4MB. Моля, компресирайте видеото.',
+                          icon: 'error',
+                        });
+                      } else {
+                        swal.fire({
+                          title: 'Грешка при качване',
+                          text: error.response?.data?.message || error.message || 'Нещо се обърка',
+                          icon: 'error',
+                        });
+                      }
+                    } finally {
+                      setIsUploadingDesktop(false);
+                    }
                   }
                 }} 
                 className="hidden" 
@@ -237,14 +290,50 @@ function SettingsPage({swal}) {
                 onChange={async ev => {
                   const files = ev.target?.files;
                   if (files?.length > 0) {
-                    setIsUploadingMobile(true);
-                    const data = new FormData();
-                    for (const file of files) {
-                      data.append('file', file);
+                    const file = files[0];
+                    // Vercel ограничава до 4.5MB
+                    const maxSize = 4 * 1024 * 1024; // 4MB
+                    if (file.size > maxSize) {
+                      swal.fire({
+                        title: 'Файлът е твърде голям',
+                        text: `Максималният размер е 4MB. Вашият файл е ${(file.size / 1024 / 1024).toFixed(2)}MB. Моля, компресирайте видеото или използвайте по-малък файл.`,
+                        icon: 'error',
+                      });
+                      ev.target.value = ''; // Reset input
+                      return;
                     }
-                    const res = await axios.post('/api/upload', data);
-                    setHeroVideoMobile(res.data.links?.[0] || '');
-                    setIsUploadingMobile(false);
+                    setIsUploadingMobile(true);
+                    try {
+                      const data = new FormData();
+                      for (const file of files) {
+                        data.append('file', file);
+                      }
+                      const res = await axios.post('/api/upload', data, {
+                        headers: {
+                          'Content-Type': 'multipart/form-data',
+                        },
+                        maxContentLength: Infinity,
+                        maxBodyLength: Infinity,
+                      });
+                      setHeroVideoMobile(res.data.links?.[0] || '');
+                    } catch (error) {
+                      console.error('Upload error:', error);
+                      if (error.response?.status === 413) {
+                        swal.fire({
+                          title: 'Файлът е твърде голям',
+                          text: 'Максималният размер е 4MB. Моля, компресирайте видеото.',
+                          icon: 'error',
+                        });
+                      } else {
+                        swal.fire({
+                          title: 'Грешка при качване',
+                          text: error.response?.data?.message || error.message || 'Нещо се обърка',
+                          icon: 'error',
+                        });
+                      }
+                    } finally {
+                      setIsUploadingMobile(false);
+                    }
                   }
                 }} 
                 className="hidden" 

@@ -10,10 +10,22 @@ export default async function handle(req,res) {
   await mongooseConnect();
   await isAdminRequest(req,res);
 
-  const form = new multiparty.Form();
+  // Конфигурираме multiparty
+  // Забележка: Vercel ограничава request body до 4.5MB
+  const form = new multiparty.Form({
+    maxFilesSize: 4 * 1024 * 1024, // 4MB (под Vercel лимита)
+    maxFieldsSize: 1 * 1024 * 1024, // 1MB
+  });
+  
   const {fields,files} = await new Promise((resolve,reject) => {
     form.parse(req, (err, fields, files) => {
-      if (err) reject(err);
+      if (err) {
+        console.error('Multiparty parse error:', err);
+        if (err.message && err.message.includes('maxFilesSize')) {
+          return res.status(413).json({message: 'Файлът е твърде голям. Максималният размер е 4MB.'});
+        }
+        return res.status(400).json({message: 'Грешка при обработка на файла', error: err.message});
+      }
       resolve({fields,files});
     });
   });
